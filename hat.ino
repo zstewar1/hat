@@ -2,11 +2,11 @@
 
 #include "morse.h"
 
-const int max_message = 0x100;
+const int max_message = 0xFF;
 char message[max_message] = "Hello, World.";
 
 /** Morse Code */
-const unsigned long unit_length_millis = 0xFF;
+const unsigned long unit_length_millis = 100;
 unsigned long next_unit;
 int units = 0;
 bool morse_on = false;
@@ -55,17 +55,20 @@ void setup() {
 void loop() {  
     unsigned long now = millis();
     step_morse(now);
+    serial_recv(now);
+}
 
+void serial_recv(unsigned long now) {
     if(Serial.available()) {
         unsigned char c = Serial.read();
         switch (state) {
         case CA:
-            if(c == '\xCA') {
+            if(c == 202) {
                 state = FE;
             }
             break;
         case FE:
-            if(c == '\xFE') {
+            if(c == 254) {
                 state = LEN;
             } else {
                 state = CA;
@@ -100,6 +103,9 @@ void loop() {
                         EEPROM.write(i, message[i]);
                     }
                 }
+                buffer_info_reset(now);
+                Serial.print("New Message: ");
+                Serial.println(recv_message);
             }
             state = CA;
             break;
@@ -109,6 +115,14 @@ void loop() {
             break;
         }
     }
+}
+
+void buffer_info_reset(unsigned long now) {
+    // Morse Code
+    str_pos = 0;
+    chr_pos = 0;
+    units = 0;
+    next_unit = now + unit_length_millis;
 }
 
 void step_morse(unsigned long now) {
